@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TSUGI HANDS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #F8F6F2;
+            --text-color: #1A1A1A;
+            --accent-color: #C66B4E;
+            --sub-accent-color: #F5E6DF;
+            --success-color: #4CAF50;
+            --inactive-color: #BDBDBD;
+            --white: #FFFFFF;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            padding-bottom: 80px; /* For bottom nav */
+            line-height: 1.6;
+        }
+
+        h1, h2, h3 {
+            color: var(--accent-color);
+            margin-top: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Tabs */
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--white);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            z-index: 1000;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            color: var(--inactive-color);
+            font-size: 10px;
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .nav-item.active {
+            color: var(--accent-color);
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            margin-bottom: 2px;
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--white);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .card-sub {
+            background-color: var(--sub-accent-color);
+        }
+
+        /* Buttons */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .btn:active {
+            opacity: 0.8;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: var(--white);
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            color: var(--white);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 2px solid var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .btn-disabled {
+            background-color: var(--inactive-color);
+            color: var(--white);
+            cursor: not-allowed;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #DDD;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        /* Main Screen (A) */
+        .pair-display {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        .pair-names {
+            font-size: 2.2rem;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .status-badge {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #EEE;
+        }
+
+        /* Member Management (B) */
+        .member-list-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #EEE;
+        }
+
+        .member-emoji {
+            font-size: 32px;
+            margin-right: 15px;
+        }
+
+        .member-info {
+            flex-grow: 1;
+        }
+
+        .member-name {
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .member-stats {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .member-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .inactive-member {
+            opacity: 0.5;
+            background-color: #f0f0f0;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--white);
+            padding: 20px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        /* Utilities */
+        .hidden { display: none; }
+        .text-center { text-align: center; }
+        .mt-20 { margin-top: 20px; }
+        .collapsible-header {
+            cursor: pointer;
+            padding: 10px;
+            background: #eee;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        /* Toast */
+        #toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            z-index: 3000;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast"></div>
+
+    <div class="container">
+        <!-- 画面A: メイン画面 -->
+        <div id="screen-main" class="tab-content active">
+            <div class="card">
+                <h2 class="text-center">今週の盛り上げ担当ペア</h2>
+                <div class="pair-display">
+                    <div id="current-pair-display" class="pair-names">抽選中...</div>
+                    <div id="pair-status" class="status-badge">未投稿</div>
+                </div>
+            </div>
+
+            <div class="card card-sub">
+                <h3>今週の企画</h3>
+                <div class="form-group">
+                    <textarea id="plan-input" placeholder="例：職人クイズやります！" rows="3"></textarea>
+                </div>
+                <button id="btn-post-plan" class="btn btn-primary">📢 Discordに企画を投稿する</button>
+            </div>
+
+            <button id="btn-complete-task" class="btn btn-success">✅ 今週の企画を実施完了！</button>
+
+            <div class="mt-20">
+                <div class="collapsible-header" onclick="document.getElementById('admin-tools').classList.toggle('hidden')">
+                    管理者用ツール（表示/非表示）
+                </div>
+                <div id="admin-tools" class="hidden mt-20">
+                    <button id="btn-force-draw" class="btn btn-outline">🔄 今すぐ新しいペアを抽選する</button>
+                    <button id="btn-force-post-announcement" class="btn btn-outline">📣 月曜の投稿を今すぐDiscordに送る</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 画面B: メンバー管理画面 -->
+        <div id="screen-members" class="tab-content">
+            <h2>メンバー管理</h2>
+            <div id="member-list-container">
+                <!-- メンバーリストがここに動的に生成される -->
+            </div>
+            <button id="btn-add-member-modal" class="btn btn-primary mt-20">＋ メンバーを追加</button>
+        </div>
+
+        <!-- 画面C: 来週の参加状況確認画面 -->
+        <div id="screen-votes" class="tab-content">
+            <h2>来週の参加状況</h2>
+            <div class="card">
+                <h3>未回答のメンバー</h3>
+                <div id="unvoted-list"></div>
+            </div>
+            <div class="card">
+                <h3>回答済み</h3>
+                <div id="voted-list"></div>
+            </div>
+            <button id="btn-post-vote-links" class="btn btn-primary">📮 土曜の投票をDiscordに投稿する</button>
+            <button id="btn-reset-votes" class="btn btn-outline mt-20">来週の回答をリセット</button>
+        </div>
+
+        <!-- 画面D: 過去のペア履歴画面 -->
+        <div id="screen-history" class="tab-content">
+            <h2>過去のペア履歴</h2>
+            <div id="streak-display" class="card text-center" style="font-size: 1.2rem; font-weight: bold; color: var(--accent-color);">
+                🔥 現在 0 週連続達成中！
+            </div>
+            <div id="history-list"></div>
+        </div>
+    </div>
+
+    <!-- メンバー追加モーダル -->
+    <div id="modal-add-member" class="modal">
+        <div class="modal-content">
+            <h3>メンバー追加</h3>
+            <div class="form-group">
+                <label>名前</label>
+                <input type="text" id="new-member-name" placeholder="名前を入力">
+            </div>
+            <div class="form-group">
+                <label>絵文字</label>
+                <input type="text" id="new-member-emoji" placeholder="絵文字を入力 (例: 🔨)" value="👤">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-save-member" class="btn btn-primary" style="flex: 1;">保存</button>
+                <button id="btn-close-modal" class="btn btn-outline" style="flex: 1;">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- お休み理由モーダル -->
+    <div id="modal-vacation-reason" class="modal">
+        <div class="modal-content">
+            <h3>お休みの理由</h3>
+            <div class="form-group">
+                <textarea id="vacation-reason-input" placeholder="理由を入力 (任意)"></textarea>
+            </div>
+            <button id="btn-save-vacation" class="btn btn-primary">決定</button>
+        </div>
+    </div>
+
+    <!-- ボトムナビゲーション -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('screen-main', this)">
+            <span class="nav-icon">🏠</span>
+            <span>今週</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('screen-members', this)">
+            <span class="nav-icon">👥</span>
+            <span>メンバー</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('screen-votes', this)">
+            <span class="nav-icon">📅</span>
+            <span>来週の確認</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('screen-history', this)">
+            <span class="nav-icon">📜</span>
+            <span>履歴</span>
+        </div>
+    </nav>
+
+    <script>
+        // --- 定数と設定 ---
+        const WEBHOOK_URL = 'https://discord.com/api/webhooks/1521832947857227866/xePvUwR_OlUByPsnI98YfFR2G-kH_4faWZSKglMOsDzM24n40qNPUUOHyBAmORa3ATne';
+        
+        // localStorage キー
+        const KEYS = {
+            MEMBERS: 'tsugi_members',
+            CURRENT_PAIR: 'tsugi_current_pair',
+            SELECTION_HISTORY: 'tsugi_selection_history',
+            PAIR_HISTORY: 'tsugi_pair_history',
+            VOTES: 'tsugi_votes',
+            STREAK: 'tsugi_streak'
+        };
+
+        // 初期メンバー
+        const INITIAL_MEMBERS = [
+            { id: "member1", name: "メンバーA", emoji: "🔨", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member2", name: "メンバーB", emoji: "🌿", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member3", name: "メンバーC", emoji: "⚡", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member4", name: "メンバーD", emoji: "🎯", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member5", name: "メンバーE", emoji: "🌸", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member6", name: "メンバーF", emoji: "🔥", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member7", name: "メンバーG", emoji: "💫", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member8", name: "メンバーH", emoji: "🎨", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member9", name: "メンバーI", emoji: "🌊", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member10", name: "メンバーJ", emoji: "🍃", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member11", name: "メンバーK", emoji: "✨", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member12", name: "メンバーL", emoji: "🎸", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member13", name: "メンバーM", emoji: "🦋", totalSelected: 0, isOff: false, offReason: "" },
+            { id: "member14", name: "メンバーN", emoji: "🌙", totalSelected: 0, isOff: false, offReason: "" }
+        ];
+
+        // --- データ管理 ---
+        let state = {
+            members: JSON.parse(localStorage.getItem(KEYS.MEMBERS)) || INITIAL_MEMBERS,
+            currentPair: JSON.parse(localStorage.getItem(KEYS.CURRENT_PAIR)) || null,
+            selectionHistory: JSON.parse(localStorage.getItem(KEYS.SELECTION_HISTORY)) || [],
+            pairHistory: JSON.parse(localStorage.getItem(KEYS.PAIR_HISTORY)) || [],
+            votes: JSON.parse(localStorage.getItem(KEYS.VOTES)) || {},
+            streak: parseInt(localStorage.getItem(KEYS.STREAK)) || 0
+        };
+
+        function saveState() {
+            localStorage.setItem(KEYS.MEMBERS, JSON.stringify(state.members));
+            localStorage.setItem(KEYS.CURRENT_PAIR, JSON.stringify(state.currentPair));
+            localStorage.setItem(KEYS.SELECTION_HISTORY, JSON.stringify(state.selectionHistory));
+            localStorage.setItem(KEYS.PAIR_HISTORY, JSON.stringify(state.pairHistory));
+            localStorage.setItem(KEYS.VOTES, JSON.stringify(state.votes));
+            localStorage.setItem(KEYS.STREAK, state.streak.toString());
+        }
+
+        // --- ユーティリティ ---
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        }
+
+        function getWeekNumber(d) {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+            return [d.getUTCFullYear(), weekNo];
+        }
+
+        function getNextMonday(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = (day === 0 ? 1 : 8 - day);
+            d.setDate(d.getDate() + diff);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        // --- UI制御 ---
+        function switchTab(screenId, navEl) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            navEl.classList.add('active');
+            renderAll();
+        }
+
+        // --- Discord連携 ---
+        async function postToDiscord(content) {
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+                if (!response.ok) throw new Error('投稿失敗');
+                showToast('Discordに投稿しました！');
+                return true;
+            } catch (error) {
+                console.error(error);
+                showToast('Discordへの投稿に失敗しました。');
+                return false;
+            }
+        }
+
+        // --- ロジック ---
+        function drawPair() {
+            // アクティブメンバーの抽出 (お休みでない & 投票で「難しい」と言っていない)
+            const activeMembers = state.members.filter(m => {
+                const vote = state.votes[m.id];
+                const isBusy = vote && vote.answer === 'no';
+                return !m.isOff && !isBusy;
+            });
+
+            if (activeMembers.length < 2) {
+                alert('アクティブなメンバーが2人未満のため、抽選できません。');
+                return null;
+            }
+
+            // まだ選ばれていない候補者
+            let candidates = activeMembers.filter(m => !state.selectionHistory.includes(m.id));
+
+            // 全員選ばれていたら履歴リセット
+            if (candidates.length < 2) {
+                state.selectionHistory = [];
+                candidates = [...activeMembers];
+            }
+
+            // ランダムに2人選出
+            const selected = [];
+            for (let i = 0; i < 2; i++) {
+                const idx = Math.floor(Math.random() * candidates.length);
+                const member = candidates.splice(idx, 1)[0];
+                selected.push(member);
+                state.selectionHistory.push(member.id);
+                
+                // 累計カウント更新
+                const memberInState = state.members.find(m => m.id === member.id);
+                memberInState.totalSelected++;
+            }
+
+            const [year, week] = getWeekNumber(new Date());
+            
+            state.currentPair = {
+                member1: selected[0],
+                member2: selected[1],
+                weekStart: new Date().getTime(),
+                weekLabel: `${year}年 第${week}週`,
+                completed: false,
+                plan: "",
+                discordPosted: false
+            };
+
+            saveState();
+            return state.currentPair;
+        }
+
+        async function announcePair(pair) {
+            const content = `━━━━━━━━━━━━━━━━━━
+🎲 今週のDiscord盛り上げ担当ペア
+
+✨ ${pair.member1.emoji} ${pair.member1.name} × ${pair.member2.emoji} ${pair.member2.name}
+
+2人で軽くミーティングして、今週メンバーへの企画を考えてね！
+クイズ・アンケート・投げかけなど何でもOK🙌
+━━━━━━━━━━━━━━━━━━`;
+            const success = await postToDiscord(content);
+            if (success) {
+                state.currentPair.discordPosted = true;
+                saveState();
+                renderAll();
+            }
+        }
+
+        // 月曜自動更新チェック
+        function checkWeeklyUpdate() {
+            if (!state.currentPair) {
+                // 初回起動時など
+                const pair = drawPair();
+                if (pair) announcePair(pair);
+                return;
+            }
+
+            const now = new Date();
+            const lastDraw = new Date(state.currentPair.weekStart);
+            
+            // 最後の抽選日から見て、次の月曜0時を過ぎているか
+            const nextMonday = getNextMonday(lastDraw);
+            
+            if (now >= nextMonday) {
+                // 前回のペアを履歴へ (未達成ならそのまま)
+                state.pairHistory.unshift({...state.currentPair});
+                if (!state.currentPair.completed) {
+                    state.streak = 0; // 途切れた
+                }
+                
+                // 新しいペアを抽選
+                const pair = drawPair();
+                if (pair) announcePair(pair);
+            }
+        }
+
+        // --- レンダリング ---
+        function renderAll() {
+            renderMain();
+            renderMembers();
+            renderVotes();
+            renderHistory();
+        }
+
+        function renderMain() {
+            const display = document.getElementById('current-pair-display');
+            const status = document.getElementById('pair-status');
+            const completeBtn = document.getElementById('btn-complete-task');
+            const planInput = document.getElementById('plan-input');
+
+            if (state.currentPair) {
+                const p = state.currentPair;
+                display.innerHTML = `${p.member1.emoji} ${p.member1.name} <span style="font-size: 1.5rem; color: #666;">×</span> ${p.member2.emoji} ${p.member2.name}`;
+                status.textContent = p.discordPosted ? 'Discordに投稿済み' : '未投稿';
+                status.style.background = p.discordPosted ? '#E8F5E9' : '#FEEBEE';
+                status.style.color = p.discordPosted ? '#2E7D32' : '#C62828';
+
+                planInput.value = p.plan || "";
+
+                if (p.completed) {
+                    completeBtn.textContent = '✅ 今週は完了！お疲れ様でした🎉';
+                    completeBtn.className = 'btn btn-disabled';
+                    completeBtn.disabled = true;
+                } else {
+                    completeBtn.textContent = '✅ 今週の企画を実施完了！';
+                    completeBtn.className = 'btn btn-success';
+                    completeBtn.disabled = false;
+                }
+            } else {
+                display.textContent = 'メンバーを登録して抽選してください';
+            }
+        }
+
+        function renderMembers() {
+            const container = document.getElementById('member-list-container');
+            container.innerHTML = '';
+            
+            state.members.forEach(m => {
+                const card = document.createElement('div');
+                card.className = `card member-list-item ${m.isOff ? 'inactive-member' : ''}`;
+                
+                card.innerHTML = `
+                    <div class="member-emoji" onclick="changeEmoji('${m.id}')">${m.emoji}</div>
+                    <div class="member-info">
+                        <div class="member-name">${m.name} ${m.isOff ? '<span style="font-size:12px; color:red;">(お休み中)</span>' : ''}</div>
+                        <div class="member-stats">選出回数: ${m.totalSelected}回 ${m.offReason ? ' | 理由: ' + m.offReason : ''}</div>
+                    </div>
+                    <div class="member-actions">
+                        <input type="checkbox" ${m.isOff ? 'checked' : ''} onchange="toggleOff('${m.id}', this.checked)">
+                        <button onclick="deleteMember('${m.id}')" style="background:none; border:none; color:red; cursor:pointer;">🗑️</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderVotes() {
+            const unvotedList = document.getElementById('unvoted-list');
+            const votedList = document.getElementById('voted-list');
+            unvotedList.innerHTML = '';
+            votedList.innerHTML = '';
+
+            state.members.forEach(m => {
+                const vote = state.votes[m.id];
+                const item = document.createElement('div');
+                item.style.padding = '8px';
+                item.style.borderBottom = '1px solid #EEE';
+
+                if (vote) {
+                    const statusIcon = vote.answer === 'yes' ? '✅' : '❌';
+                    item.innerHTML = `${statusIcon} <strong>${m.name}</strong> ${vote.reason ? '<br><small>理由: ' + vote.reason + '</small>' : ''}`;
+                    votedList.appendChild(item);
+                } else {
+                    item.innerHTML = `⬜ <strong>${m.name}</strong>`;
+                    unvotedList.appendChild(item);
+                }
+            });
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-list');
+            const streakEl = document.getElementById('streak-display');
+            container.innerHTML = '';
+            
+            streakEl.textContent = `🔥 現在 ${state.streak} 週連続達成中！`;
+
+            state.pairHistory.forEach(h => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <span style="font-weight:bold;">${h.weekLabel}</span>
+                        <span class="status-badge" style="background:${h.completed ? '#E8F5E9':'#FEEBEE'}; color:${h.completed ? '#2E7D32':'#C62828'};">
+                            ${h.completed ? '✅ 達成' : '❌ 未達成'}
+                        </span>
+                    </div>
+                    <div style="font-size:1.2rem; text-align:center; margin:10px 0;">
+                        ${h.member1.emoji} ${h.member1.name} × ${h.member2.emoji} ${h.member2.name}
+                    </div>
+                    ${h.plan ? '<div style="font-size:14px; color:#666; border-top:1px solid #EEE; padding-top:10px;">企画: ' + h.plan + '</div>' : ''}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- アクション ---
+        function toggleOff(id, isOff) {
+            const member = state.members.find(m => m.id === id);
+            if (isOff) {
+                const reason = prompt('お休みの理由を入力してください (任意)', member.offReason || '');
+                member.isOff = true;
+                member.offReason = reason || "";
+            } else {
+                member.isOff = false;
+                member.offReason = "";
+            }
+            saveState();
+            renderAll();
+        }
+
+        function deleteMember(id) {
+            if (confirm('このメンバーを削除しますか？')) {
+                state.members = state.members.filter(m => m.id !== id);
+                saveState();
+                renderAll();
+            }
+        }
+
+        function changeEmoji(id) {
+            const member = state.members.find(m => m.id === id);
+            const newEmoji = prompt('新しい絵文字を入力してください', member.emoji);
+            if (newEmoji) {
+                member.emoji = newEmoji;
+                saveState();
+                renderAll();
+            }
+        }
+
+        // --- イベントリスナー ---
+        document.getElementById('btn-post-plan').addEventListener('click', async () => {
+            if (!state.currentPair) return;
+            const plan = document.getElementById('plan-input').value;
+            if (!plan) {
+                alert('企画内容を入力してください');
+                return;
+            }
+
+            const content = `━━━━━━━━━━━━━━━
+📋 今週の企画が決まりました！
+
+🎯 ${plan}
+
+担当：${state.currentPair.member1.name} × ${state.currentPair.member2.name}
+みんな参加してね！
+━━━━━━━━━━━━━━━`;
+            
+            const success = await postToDiscord(content);
+            if (success) {
+                state.currentPair.plan = plan;
+                saveState();
+                renderAll();
+            }
+        });
+
+        document.getElementById('btn-complete-task').addEventListener('click', () => {
+            if (!state.currentPair || state.currentPair.completed) return;
+            state.currentPair.completed = true;
+            state.streak++;
+            saveState();
+            renderAll();
+            showToast('お疲れ様でした！達成記録を更新しました🎉');
+        });
+
+        document.getElementById('btn-force-draw').addEventListener('click', () => {
+            if (confirm('新しいペアに切り替えますか？今週の記録はリセットされます')) {
+                const pair = drawPair();
+                if (pair) announcePair(pair);
+                renderAll();
+            }
+        });
+
+        document.getElementById('btn-force-post-announcement').addEventListener('click', () => {
+            if (state.currentPair) {
+                announcePair(state.currentPair);
+            }
+        });
+
+        document.getElementById('btn-add-member-modal').addEventListener('click', () => {
+            document.getElementById('modal-add-member').style.display = 'flex';
+        });
+
+        document.getElementById('btn-close-modal').addEventListener('click', () => {
+            document.getElementById('modal-add-member').style.display = 'none';
+        });
+
+        document.getElementById('btn-save-member').addEventListener('click', () => {
+            const name = document.getElementById('new-member-name').value;
+            const emoji = document.getElementById('new-member-emoji').value;
+            if (!name) return alert('名前を入力してください');
+            
+            const newMember = {
+                id: 'member_' + Date.now(),
+                name: name,
+                emoji: emoji || '👤',
+                totalSelected: 0,
+                isOff: false,
+                offReason: ""
+            };
+            
+            state.members.push(newMember);
+            saveState();
+            renderAll();
+            document.getElementById('modal-add-member').style.display = 'none';
+            document.getElementById('new-member-name').value = '';
+        });
+
+        document.getElementById('btn-post-vote-links').addEventListener('click', async () => {
+            // アプリのベースURLを取得 (デスクトップアプリなのでファイルパスになるが、実際はホストされるURLを想定)
+            // ここでは仮に現在のパスを使用
+            const baseUrl = window.location.href.split('index.html')[0] + 'vote.html';
+            
+            let links = state.members.map(m => {
+                return `${m.emoji} ${m.name}さん → ${baseUrl}?member=${m.id}`;
+            }).join('\n');
+
+            const content = `━━━━━━━━━━━━━━━
+📅 来週のペア抽選に向けて
+
+来週参加できる？ 下のリンクから回答してね👇
+
+${links}
+
+⏰ 日曜夜までに回答してほしい！
+━━━━━━━━━━━━━━━`;
+            
+            await postToDiscord(content);
+        });
+
+        document.getElementById('btn-reset-votes').addEventListener('click', () => {
+            if (confirm('来週の回答をすべてリセットしますか？')) {
+                state.votes = {};
+                saveState();
+                renderAll();
+            }
+        });
+
+        // --- 初期化 ---
+        window.onload = () => {
+            checkWeeklyUpdate();
+            renderAll();
+        };
+    </script>
+</body>
+</html>

@@ -151,7 +151,7 @@
             margin-bottom: 5px;
         }
 
-        input[type="text"], textarea, select {
+        input[type="text"], input[type="password"], input[type="number"], textarea, select {
             width: 100%;
             padding: 12px;
             border: 1px solid #DDD;
@@ -208,11 +208,26 @@
         .member-actions {
             display: flex;
             gap: 10px;
+            align-items: center;
         }
 
         .inactive-member {
             opacity: 0.5;
             background-color: #f0f0f0;
+        }
+
+        /* PIN Screen */
+        .pin-container {
+            text-align: center;
+            padding: 50px 20px;
+        }
+
+        .pin-input-field {
+            font-size: 24px;
+            letter-spacing: 10px;
+            text-align: center;
+            margin: 20px 0;
+            width: 150px;
         }
 
         /* Modal */
@@ -263,6 +278,15 @@
             z-index: 3000;
             display: none;
         }
+
+        .template-help {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            background: #f9f9f9;
+            padding: 8px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -280,34 +304,85 @@
                 </div>
             </div>
 
-            <div class="card card-sub">
+            <!-- 修正③: 企画投稿を全員がアクセスできる場所に移動 -->
+            <button id="btn-open-plan-modal" class="btn btn-primary">今週の企画を投稿する</button>
+
+            <div id="weekly-plan-display" class="card card-sub hidden">
                 <h3>今週の企画</h3>
-                <div class="form-group">
-                    <textarea id="plan-input" placeholder="例：職人クイズやります！" rows="3"></textarea>
-                </div>
-                <button id="btn-post-plan" class="btn btn-primary">📢 Discordに企画を投稿する</button>
+                <p id="current-plan-text" style="font-weight: bold; font-size: 1.1rem;"></p>
             </div>
 
             <button id="btn-complete-task" class="btn btn-success">✅ 今週の企画を実施完了！</button>
+        </div>
 
-            <div class="mt-20">
-                <div class="collapsible-header" onclick="document.getElementById('admin-tools').classList.toggle('hidden')">
-                    管理者用ツール（表示/非表示）
-                </div>
-                <div id="admin-tools" class="hidden mt-20">
-                    <button id="btn-force-draw" class="btn btn-outline">🔄 今すぐ新しいペアを抽選する</button>
-                    <button id="btn-force-post-announcement" class="btn btn-outline">📣 月曜の投稿を今すぐDiscordに送る</button>
-                </div>
+        <!-- PIN認証画面 -->
+        <div id="screen-pin" class="tab-content">
+            <div class="card pin-container">
+                <h2>管理者用画面</h2>
+                <p>PINコードを入力してください</p>
+                <input type="password" id="admin-pin-input" class="pin-input-field" maxlength="4" inputmode="numeric" placeholder="****">
+                <button id="btn-admin-login" class="btn btn-primary">ログイン</button>
+                <p id="pin-error" style="color: red; display: none;">PINが違います</p>
             </div>
         </div>
 
-        <!-- 画面B: メンバー管理画面 -->
-        <div id="screen-members" class="tab-content">
-            <h2>メンバー管理</h2>
-            <div id="member-list-container">
-                <!-- メンバーリストがここに動的に生成される -->
+        <!-- 画面B: 管理者画面 (PIN認証後) -->
+        <div id="screen-admin" class="tab-content">
+            <h2>管理者設定</h2>
+            
+            <!-- 修正②: テンプレート編集機能 -->
+            <div class="card">
+                <h3>Discordテンプレート編集</h3>
+                <div class="form-group">
+                    <label>月曜のペア発表メッセージ</label>
+                    <textarea id="template-monday" rows="6"></textarea>
+                    <div class="template-help">
+                        {memberA} → メンバーAの名前と絵文字<br>
+                        {memberB} → メンバーBの名前と絵文字
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>土曜の投票案内メッセージ</label>
+                    <textarea id="template-saturday" rows="6"></textarea>
+                    <div class="template-help">
+                        {voteLinks} → 全メンバーの投票リンク一覧
+                    </div>
+                </div>
+                <button id="btn-save-templates" class="btn btn-primary">テンプレートを保存</button>
             </div>
-            <button id="btn-add-member-modal" class="btn btn-primary mt-20">＋ メンバーを追加</button>
+
+            <!-- 修正①: PIN変更機能 -->
+            <div class="card">
+                <h3>PINコードの変更</h3>
+                <div class="form-group">
+                    <label>現在のPIN</label>
+                    <input type="password" id="pin-current" maxlength="4">
+                </div>
+                <div class="form-group">
+                    <label>新しいPIN</label>
+                    <input type="password" id="pin-new" maxlength="4">
+                </div>
+                <div class="form-group">
+                    <label>新しいPIN (確認)</label>
+                    <input type="password" id="pin-confirm" maxlength="4">
+                </div>
+                <button id="btn-change-pin" class="btn btn-outline">PINを変更する</button>
+            </div>
+
+            <!-- 既存の管理者ツール -->
+            <div class="card">
+                <h3>手動操作</h3>
+                <button id="btn-force-draw" class="btn btn-outline">🔄 今すぐ新しいペアを抽選する</button>
+                <button id="btn-force-post-announcement" class="btn btn-outline">📣 月曜の投稿を今すぐDiscordに送る</button>
+            </div>
+
+            <div class="card">
+                <h3>メンバー管理</h3>
+                <div id="member-list-container">
+                    <!-- メンバーリストがここに動的に生成される -->
+                </div>
+                <button id="btn-add-member-modal" class="btn btn-primary mt-20">＋ メンバーを追加</button>
+            </div>
         </div>
 
         <!-- 画面C: 来週の参加状況確認画面 -->
@@ -321,6 +396,7 @@
                 <h3>回答済み</h3>
                 <div id="voted-list"></div>
             </div>
+            <!-- 管理者機能だが、便宜上ここに配置（必要ならPINチェックを入れることも可能だが指示通り維持） -->
             <button id="btn-post-vote-links" class="btn btn-primary">📮 土曜の投票をDiscordに投稿する</button>
             <button id="btn-reset-votes" class="btn btn-outline mt-20">来週の回答をリセット</button>
         </div>
@@ -332,6 +408,22 @@
                 🔥 現在 0 週連続達成中！
             </div>
             <div id="history-list"></div>
+        </div>
+    </div>
+
+    <!-- 企画投稿モーダル -->
+    <div id="modal-post-plan" class="modal">
+        <div class="modal-content">
+            <h3>今週の企画を投稿する</h3>
+            <div id="plan-modal-pair" class="text-center" style="font-weight: bold; margin-bottom: 15px;"></div>
+            <div class="form-group">
+                <label>今週の企画を一言入力してください</label>
+                <textarea id="plan-input" placeholder="例：職人クイズやります！" rows="3"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-post-plan" class="btn btn-primary" style="flex: 1;">📢 Discordに投稿する</button>
+                <button id="btn-close-plan-modal" class="btn btn-outline" style="flex: 1;">閉じる</button>
+            </div>
         </div>
     </div>
 
@@ -354,26 +446,15 @@
         </div>
     </div>
 
-    <!-- お休み理由モーダル -->
-    <div id="modal-vacation-reason" class="modal">
-        <div class="modal-content">
-            <h3>お休みの理由</h3>
-            <div class="form-group">
-                <textarea id="vacation-reason-input" placeholder="理由を入力 (任意)"></textarea>
-            </div>
-            <button id="btn-save-vacation" class="btn btn-primary">決定</button>
-        </div>
-    </div>
-
     <!-- ボトムナビゲーション -->
     <nav class="bottom-nav">
         <div class="nav-item active" onclick="switchTab('screen-main', this)">
             <span class="nav-icon">🏠</span>
             <span>今週</span>
         </div>
-        <div class="nav-item" onclick="switchTab('screen-members', this)">
-            <span class="nav-icon">👥</span>
-            <span>メンバー</span>
+        <div class="nav-item" onclick="handleAdminTab(this)">
+            <span class="nav-icon">⚙️</span>
+            <span>管理者</span>
         </div>
         <div class="nav-item" onclick="switchTab('screen-votes', this)">
             <span class="nav-icon">📅</span>
@@ -396,8 +477,31 @@
             SELECTION_HISTORY: 'tsugi_selection_history',
             PAIR_HISTORY: 'tsugi_pair_history',
             VOTES: 'tsugi_votes',
-            STREAK: 'tsugi_streak'
+            STREAK: 'tsugi_streak',
+            ADMIN_PIN: 'tsugi_admin_pin',
+            MONDAY_TEMPLATE: 'tsugi_monday_template',
+            SATURDAY_TEMPLATE: 'tsugi_saturday_template',
+            WEEKLY_PLAN: 'tsugi_weekly_plan'
         };
+
+        const DEFAULT_MONDAY_TEMPLATE = `━━━━━━━━━━━━━━━━━━
+🎲 今週のDiscord盛り上げ担当ペア
+
+✨ {memberA} × {memberB}
+
+2人で軽くミーティングして、今週メンバーへの企画を考えてね！
+クイズ・アンケート・投げかけなど何でもOK🙌
+━━━━━━━━━━━━━━━━━━`;
+
+        const DEFAULT_SATURDAY_TEMPLATE = `━━━━━━━━━━━━━━━
+📅 来週のペア抽選に向けて
+
+来週参加できる？ 下のリンクから回答してね👇
+
+{voteLinks}
+
+⏰ 日曜夜までに回答してほしい！
+━━━━━━━━━━━━━━━`;
 
         // 初期メンバー
         const INITIAL_MEMBERS = [
@@ -424,8 +528,15 @@
             selectionHistory: JSON.parse(localStorage.getItem(KEYS.SELECTION_HISTORY)) || [],
             pairHistory: JSON.parse(localStorage.getItem(KEYS.PAIR_HISTORY)) || [],
             votes: JSON.parse(localStorage.getItem(KEYS.VOTES)) || {},
-            streak: parseInt(localStorage.getItem(KEYS.STREAK)) || 0
+            streak: parseInt(localStorage.getItem(KEYS.STREAK)) || 0,
+            adminPin: localStorage.getItem(KEYS.ADMIN_PIN) || '1234',
+            mondayTemplate: localStorage.getItem(KEYS.MONDAY_TEMPLATE) || DEFAULT_MONDAY_TEMPLATE,
+            saturdayTemplate: localStorage.getItem(KEYS.SATURDAY_TEMPLATE) || DEFAULT_SATURDAY_TEMPLATE,
+            weeklyPlan: localStorage.getItem(KEYS.WEEKLY_PLAN) || ""
         };
+
+        let sessionAuth = false;
+        let editingMemberId = null;
 
         function saveState() {
             localStorage.setItem(KEYS.MEMBERS, JSON.stringify(state.members));
@@ -434,6 +545,10 @@
             localStorage.setItem(KEYS.PAIR_HISTORY, JSON.stringify(state.pairHistory));
             localStorage.setItem(KEYS.VOTES, JSON.stringify(state.votes));
             localStorage.setItem(KEYS.STREAK, state.streak.toString());
+            localStorage.setItem(KEYS.ADMIN_PIN, state.adminPin);
+            localStorage.setItem(KEYS.MONDAY_TEMPLATE, state.mondayTemplate);
+            localStorage.setItem(KEYS.SATURDAY_TEMPLATE, state.saturdayTemplate);
+            localStorage.setItem(KEYS.WEEKLY_PLAN, state.weeklyPlan);
         }
 
         // --- ユーティリティ ---
@@ -466,9 +581,56 @@
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            navEl.classList.add('active');
+            if (navEl) navEl.classList.add('active');
             renderAll();
         }
+
+        function handleAdminTab(navEl) {
+            if (sessionAuth) {
+                switchTab('screen-admin', navEl);
+            } else {
+                switchTab('screen-pin', navEl);
+            }
+        }
+
+        // --- PIN認証 ---
+        document.getElementById('btn-admin-login').addEventListener('click', () => {
+            const input = document.getElementById('admin-pin-input').value;
+            if (input === state.adminPin) {
+                sessionAuth = true;
+                document.getElementById('pin-error').style.display = 'none';
+                document.getElementById('admin-pin-input').value = '';
+                switchTab('screen-admin', document.querySelector('.nav-item:nth-child(2)'));
+            } else {
+                document.getElementById('pin-error').style.display = 'block';
+                document.getElementById('admin-pin-input').value = '';
+            }
+        });
+
+        document.getElementById('btn-change-pin').addEventListener('click', () => {
+            const current = document.getElementById('pin-current').value;
+            const newVal = document.getElementById('pin-new').value;
+            const confirmVal = document.getElementById('pin-confirm').value;
+
+            if (current !== state.adminPin) return alert('現在のPINが違います');
+            if (newVal.length !== 4 || !/^\d+$/.test(newVal)) return alert('新しいPINは4桁の数字で入力してください');
+            if (newVal !== confirmVal) return alert('確認用のPINが一致しません');
+
+            state.adminPin = newVal;
+            saveState();
+            alert('PINを変更しました');
+            document.getElementById('pin-current').value = '';
+            document.getElementById('pin-new').value = '';
+            document.getElementById('pin-confirm').value = '';
+        });
+
+        // --- テンプレート保存 ---
+        document.getElementById('btn-save-templates').addEventListener('click', () => {
+            state.mondayTemplate = document.getElementById('template-monday').value;
+            state.saturdayTemplate = document.getElementById('template-saturday').value;
+            saveState();
+            showToast('テンプレートを保存しました');
+        });
 
         // --- Discord連携 ---
         async function postToDiscord(content) {
@@ -490,7 +652,6 @@
 
         // --- ロジック ---
         function drawPair() {
-            // アクティブメンバーの抽出 (お休みでない & 投票で「難しい」と言っていない)
             const activeMembers = state.members.filter(m => {
                 const vote = state.votes[m.id];
                 const isBusy = vote && vote.answer === 'no';
@@ -502,16 +663,12 @@
                 return null;
             }
 
-            // まだ選ばれていない候補者
             let candidates = activeMembers.filter(m => !state.selectionHistory.includes(m.id));
-
-            // 全員選ばれていたら履歴リセット
             if (candidates.length < 2) {
                 state.selectionHistory = [];
                 candidates = [...activeMembers];
             }
 
-            // ランダムに2人選出
             const selected = [];
             for (let i = 0; i < 2; i++) {
                 const idx = Math.floor(Math.random() * candidates.length);
@@ -519,7 +676,6 @@
                 selected.push(member);
                 state.selectionHistory.push(member.id);
                 
-                // 累計カウント更新
                 const memberInState = state.members.find(m => m.id === member.id);
                 memberInState.totalSelected++;
             }
@@ -532,23 +688,21 @@
                 weekStart: new Date().getTime(),
                 weekLabel: `${year}年 第${week}週`,
                 completed: false,
-                plan: "",
                 discordPosted: false
             };
+            
+            // 企画リセット
+            state.weeklyPlan = "";
 
             saveState();
             return state.currentPair;
         }
 
         async function announcePair(pair) {
-            const content = `━━━━━━━━━━━━━━━━━━
-🎲 今週のDiscord盛り上げ担当ペア
-
-✨ ${pair.member1.emoji} ${pair.member1.name} × ${pair.member2.emoji} ${pair.member2.name}
-
-2人で軽くミーティングして、今週メンバーへの企画を考えてね！
-クイズ・アンケート・投げかけなど何でもOK🙌
-━━━━━━━━━━━━━━━━━━`;
+            let content = state.mondayTemplate;
+            content = content.replace(/{memberA}/g, `${pair.member1.emoji} ${pair.member1.name}`);
+            content = content.replace(/{memberB}/g, `${pair.member2.emoji} ${pair.member2.name}`);
+            
             const success = await postToDiscord(content);
             if (success) {
                 state.currentPair.discordPosted = true;
@@ -557,10 +711,8 @@
             }
         }
 
-        // 月曜自動更新チェック
         function checkWeeklyUpdate() {
             if (!state.currentPair) {
-                // 初回起動時など
                 const pair = drawPair();
                 if (pair) announcePair(pair);
                 return;
@@ -568,18 +720,13 @@
 
             const now = new Date();
             const lastDraw = new Date(state.currentPair.weekStart);
-            
-            // 最後の抽選日から見て、次の月曜0時を過ぎているか
             const nextMonday = getNextMonday(lastDraw);
             
             if (now >= nextMonday) {
-                // 前回のペアを履歴へ (未達成ならそのまま)
-                state.pairHistory.unshift({...state.currentPair});
+                state.pairHistory.unshift({...state.currentPair, plan: state.weeklyPlan});
                 if (!state.currentPair.completed) {
-                    state.streak = 0; // 途切れた
+                    state.streak = 0;
                 }
-                
-                // 新しいペアを抽選
                 const pair = drawPair();
                 if (pair) announcePair(pair);
             }
@@ -591,13 +738,18 @@
             renderMembers();
             renderVotes();
             renderHistory();
+            
+            // テンプレート入力欄の初期化
+            document.getElementById('template-monday').value = state.mondayTemplate;
+            document.getElementById('template-saturday').value = state.saturdayTemplate;
         }
 
         function renderMain() {
             const display = document.getElementById('current-pair-display');
             const status = document.getElementById('pair-status');
             const completeBtn = document.getElementById('btn-complete-task');
-            const planInput = document.getElementById('plan-input');
+            const planDisplay = document.getElementById('weekly-plan-display');
+            const planText = document.getElementById('current-plan-text');
 
             if (state.currentPair) {
                 const p = state.currentPair;
@@ -606,7 +758,12 @@
                 status.style.background = p.discordPosted ? '#E8F5E9' : '#FEEBEE';
                 status.style.color = p.discordPosted ? '#2E7D32' : '#C62828';
 
-                planInput.value = p.plan || "";
+                if (state.weeklyPlan) {
+                    planDisplay.classList.remove('hidden');
+                    planText.textContent = state.weeklyPlan;
+                } else {
+                    planDisplay.classList.add('hidden');
+                }
 
                 if (p.completed) {
                     completeBtn.textContent = '✅ 今週は完了！お疲れ様でした🎉';
@@ -630,19 +787,79 @@
                 const card = document.createElement('div');
                 card.className = `card member-list-item ${m.isOff ? 'inactive-member' : ''}`;
                 
-                card.innerHTML = `
-                    <div class="member-emoji" onclick="changeEmoji('${m.id}')">${m.emoji}</div>
-                    <div class="member-info">
-                        <div class="member-name">${m.name} ${m.isOff ? '<span style="font-size:12px; color:red;">(お休み中)</span>' : ''}</div>
-                        <div class="member-stats">選出回数: ${m.totalSelected}回 ${m.offReason ? ' | 理由: ' + m.offReason : ''}</div>
-                    </div>
-                    <div class="member-actions">
-                        <input type="checkbox" ${m.isOff ? 'checked' : ''} onchange="toggleOff('${m.id}', this.checked)">
-                        <button onclick="deleteMember('${m.id}')" style="background:none; border:none; color:red; cursor:pointer;">🗑️</button>
-                    </div>
-                `;
+                if (editingMemberId === m.id) {
+                    // 編集モード
+                    card.innerHTML = `
+                        <div class="member-info">
+                            <div class="form-group">
+                                <label>名前</label>
+                                <input type="text" id="edit-name-${m.id}" value="${m.name}">
+                            </div>
+                            <div class="form-group">
+                                <label>絵文字</label>
+                                <input type="text" id="edit-emoji-${m.id}" value="${m.emoji}">
+                            </div>
+                        </div>
+                        <div class="member-actions">
+                            <button class="btn btn-primary" onclick="saveMemberEdit('${m.id}')" style="padding: 5px 10px; font-size: 12px;">保存</button>
+                            <button class="btn btn-outline" onclick="cancelMemberEdit()" style="padding: 5px 10px; font-size: 12px;">取消</button>
+                        </div>
+                    `;
+                } else {
+                    // 通常表示
+                    card.innerHTML = `
+                        <div class="member-emoji">${m.emoji}</div>
+                        <div class="member-info">
+                            <div class="member-name">${m.name} ${m.isOff ? '<span style="font-size:12px; color:red;">(お休み中)</span>' : ''}</div>
+                            <div class="member-stats">選出回数: ${m.totalSelected}回 ${m.offReason ? ' | 理由: ' + m.offReason : ''}</div>
+                        </div>
+                        <div class="member-actions">
+                            <button onclick="startMemberEdit('${m.id}')" style="background:none; border:none; cursor:pointer;" ${editingMemberId ? 'disabled' : ''}>✏️</button>
+                            <input type="checkbox" ${m.isOff ? 'checked' : ''} onchange="toggleOff('${m.id}', this.checked)" ${editingMemberId ? 'disabled' : ''}>
+                            <button onclick="deleteMember('${m.id}')" style="background:none; border:none; color:red; cursor:pointer;" ${editingMemberId ? 'disabled' : ''}>🗑️</button>
+                        </div>
+                    `;
+                }
                 container.appendChild(card);
             });
+        }
+
+        // 修正④: メンバー編集機能
+        function startMemberEdit(id) {
+            editingMemberId = id;
+            renderMembers();
+        }
+
+        function cancelMemberEdit() {
+            editingMemberId = null;
+            renderMembers();
+        }
+
+        function saveMemberEdit(id) {
+            const name = document.getElementById(`edit-name-${id}`).value;
+            const emoji = document.getElementById(`edit-emoji-${id}`).value;
+            if (!name) return alert('名前を入力してください');
+            
+            const member = state.members.find(m => m.id === id);
+            member.name = name;
+            member.emoji = emoji || '👤';
+            
+            // 今週のペアにも反映
+            if (state.currentPair) {
+                if (state.currentPair.member1.id === id) {
+                    state.currentPair.member1.name = name;
+                    state.currentPair.member1.emoji = emoji;
+                }
+                if (state.currentPair.member2.id === id) {
+                    state.currentPair.member2.name = name;
+                    state.currentPair.member2.emoji = emoji;
+                }
+            }
+
+            saveState();
+            editingMemberId = null;
+            renderAll();
+            showToast('メンバー情報を更新しました');
         }
 
         function renderVotes() {
@@ -717,24 +934,24 @@
             }
         }
 
-        function changeEmoji(id) {
-            const member = state.members.find(m => m.id === id);
-            const newEmoji = prompt('新しい絵文字を入力してください', member.emoji);
-            if (newEmoji) {
-                member.emoji = newEmoji;
-                saveState();
-                renderAll();
-            }
-        }
-
         // --- イベントリスナー ---
+        
+        // 修正③: 企画投稿モーダル制御
+        document.getElementById('btn-open-plan-modal').addEventListener('click', () => {
+            if (!state.currentPair) return alert('ペアが抽選されていません');
+            const p = state.currentPair;
+            document.getElementById('plan-modal-pair').innerHTML = `${p.member1.emoji} ${p.member1.name} × ${p.member2.emoji} ${p.member2.name}`;
+            document.getElementById('plan-input').value = state.weeklyPlan;
+            document.getElementById('modal-post-plan').style.display = 'flex';
+        });
+
+        document.getElementById('btn-close-plan-modal').addEventListener('click', () => {
+            document.getElementById('modal-post-plan').style.display = 'none';
+        });
+
         document.getElementById('btn-post-plan').addEventListener('click', async () => {
-            if (!state.currentPair) return;
             const plan = document.getElementById('plan-input').value;
-            if (!plan) {
-                alert('企画内容を入力してください');
-                return;
-            }
+            if (!plan) return alert('企画内容を入力してください');
 
             const content = `━━━━━━━━━━━━━━━
 📋 今週の企画が決まりました！
@@ -747,9 +964,10 @@
             
             const success = await postToDiscord(content);
             if (success) {
-                state.currentPair.plan = plan;
+                state.weeklyPlan = plan;
                 saveState();
                 renderAll();
+                document.getElementById('modal-post-plan').style.display = 'none';
             }
         });
 
@@ -806,23 +1024,13 @@
         });
 
         document.getElementById('btn-post-vote-links').addEventListener('click', async () => {
-            // アプリのベースURLを取得 (デスクトップアプリなのでファイルパスになるが、実際はホストされるURLを想定)
-            // ここでは仮に現在のパスを使用
             const baseUrl = window.location.href.split('index.html')[0] + 'vote.html';
-            
             let links = state.members.map(m => {
                 return `${m.emoji} ${m.name}さん → ${baseUrl}?member=${m.id}`;
             }).join('\n');
 
-            const content = `━━━━━━━━━━━━━━━
-📅 来週のペア抽選に向けて
-
-来週参加できる？ 下のリンクから回答してね👇
-
-${links}
-
-⏰ 日曜夜までに回答してほしい！
-━━━━━━━━━━━━━━━`;
+            let content = state.saturdayTemplate;
+            content = content.replace(/{voteLinks}/g, links);
             
             await postToDiscord(content);
         });

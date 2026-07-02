@@ -171,7 +171,7 @@
             <div class="form-group"><label>本文</label><textarea id="editor-body" rows="4" oninput="updatePreview()"></textarea></div>
             <div class="form-group">
                 <label>URLリンク</label>
-                <div style="display: flex; gap: 5px;"><input type="text" id="link-label" placeholder="ラベル" style="flex:1;"><input type="text" id="link-url" placeholder="https://..." style="flex:2;"><button onclick="addLink()" class="btn btn-primary" style="flex:0; padding:10px;">＋</button></div>
+                <div style="display: flex; gap: 5px;"><input type="text" id="link-label" placeholder="ラベル" style="flex:1;"><input type="text" id="link-url" placeholder="https://..." style="flex:2;"><button id="btn-add-link" class="btn btn-primary" style="flex:0; padding:10px;">＋</button></div>
                 <div id="link-tags-container" style="margin-top: 5px;"></div>
             </div>
             <div class="form-group"><label>画像URL</label><input type="text" id="editor-image-url" oninput="updatePreview()"></div>
@@ -182,7 +182,7 @@
             </div>
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button id="btn-confirm-post-creative" class="btn btn-primary" style="flex: 2;">📢 投稿</button>
-                <button onclick="closeCreativeEditor()" class="btn btn-secondary" style="flex: 1;">閉じる</button>
+                <button id="btn-close-creative-editor" class="btn btn-secondary" style="flex: 1;">閉じる</button>
             </div>
         </div>
     </div>
@@ -202,148 +202,219 @@
             <h3 id="member-modal-title">メンバー追加</h3>
             <div class="form-group"><label>名前</label><input type="text" id="member-name"></div>
             <div class="form-group"><label>絵文字</label><input type="text" id="member-emoji"></div>
-            <div style="display: flex; gap: 10px;"><button id="btn-save-member" class="btn btn-primary" style="flex: 1;">保存</button><button onclick="document.getElementById('modal-member').style.display='none'" class="btn btn-secondary" style="flex: 1;">キャンセル</button></div>
+            <div style="display: flex; gap: 10px;"><button id="btn-save-member" class="btn btn-primary" style="flex: 1;">保存</button><button id="btn-close-member-modal" class="btn btn-secondary" style="flex: 1;">キャンセル</button></div>
         </div>
     </div>
 
     <!-- ナビ -->
     <nav class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('screen-main', this)"><span class="nav-icon">🏠</span><span>今週</span></div>
-        <div class="nav-item" onclick="handleAdminTab(this)"><span class="nav-icon">⚙️</span><span>管理者</span></div>
-        <div class="nav-item" onclick="switchTab('screen-votes', this)"><span class="nav-icon">📅</span><span>来週</span></div>
-        <div class="nav-item" onclick="switchTab('screen-history', this)"><span class="nav-icon">📜</span><span>履歴</span></div>
+        <div class="nav-item active" data-tab="screen-main"><span class="nav-icon">🏠</span><span>今週</span></div>
+        <div class="nav-item" data-tab="admin"><span class="nav-icon">⚙️</span><span>管理者</span></div>
+        <div class="nav-item" data-tab="screen-votes"><span class="nav-icon">📅</span><span>来週</span></div>
+        <div class="nav-item" data-tab="screen-history"><span class="nav-icon">📜</span><span>履歴</span></div>
     </nav>
 
     <script>
+        // エラーハンドリングの強化
+        window.onerror = function(msg, url, line) {
+            console.error("Error: " + msg + "\nURL: " + url + "\nLine: " + line);
+            return false;
+        };
+
         const WEBHOOK_URL = 'https://discord.com/api/webhooks/1521832947857227866/xePvUwR_OlUByPsnI98YfFR2G-kH_4faWZSKglMOsDzM24n40qNPUUOHyBAmORa3ATne';
         const KEYS = { MEMBERS: 'tsugi_members', CURRENT: 'tsugi_current_pair', HISTORY: 'tsugi_pair_history', VOTES: 'tsugi_votes', STREAK: 'tsugi_streak', PIN: 'tsugi_admin_pin', TEMPLATE_M: 'tsugi_monday_template', TEMPLATE_S: 'tsugi_saturday_template', DRAFT: 'tsugi_draft_post', PLAN: 'tsugi_weekly_plan', SELECTION: 'tsugi_selection_history' };
         
         const DEFAULT_M = `🎲 今週の担当ペア\n\n✨ {memberA} × {memberB}\n\n企画を考えてね！`;
-        const DEFAULT_S = `📅 来週の参加投票\n\n{voteLinks}\n\n回答お願いします！`;
+        const DEFAULT_S = `📅 来週の参加投票\n\n🔗 [回答はこちら]({voteLink})\n\n日曜24時までに回答お願いします！`;
 
-        let state = {
-            members: JSON.parse(localStorage.getItem(KEYS.MEMBERS)) || [
-                { id: "m1", name: "メンバーA", emoji: "🔨", total: 0, off: false },
-                { id: "m2", name: "メンバーB", emoji: "🌿", total: 0, off: false },
-                { id: "m3", name: "メンバーC", emoji: "⚡", total: 0, off: false },
-                { id: "m4", name: "メンバーD", emoji: "🎯", total: 0, off: false }
-            ],
-            current: JSON.parse(localStorage.getItem(KEYS.CURRENT)) || null,
-            history: JSON.parse(localStorage.getItem(KEYS.HISTORY)) || [],
-            votes: JSON.parse(localStorage.getItem(KEYS.VOTES)) || {},
-            streak: parseInt(localStorage.getItem(KEYS.STREAK)) || 0,
-            pin: localStorage.getItem(KEYS.PIN) || '1234',
-            templateM: localStorage.getItem(KEYS.TEMPLATE_M) || DEFAULT_M,
-            templateS: localStorage.getItem(KEYS.TEMPLATE_S) || DEFAULT_S,
-            draft: JSON.parse(localStorage.getItem(KEYS.DRAFT)) || { title: "", body: "", links: [], image: "", options: { divider: false, pair: true, tag: true } },
-            plan: JSON.parse(localStorage.getItem(KEYS.PLAN)) || null,
-            selection: JSON.parse(localStorage.getItem(KEYS.SELECTION)) || []
-        };
+        // 状態の初期化
+        let state = {};
+        try {
+            state = {
+                members: JSON.parse(localStorage.getItem(KEYS.MEMBERS)) || [
+                    { id: "m1", name: "メンバーA", emoji: "🔨", total: 0, off: false },
+                    { id: "m2", name: "メンバーB", emoji: "🌿", total: 0, off: false },
+                    { id: "m3", name: "メンバーC", emoji: "⚡", total: 0, off: false },
+                    { id: "m4", name: "メンバーD", emoji: "🎯", total: 0, off: false }
+                ],
+                current: JSON.parse(localStorage.getItem(KEYS.CURRENT)) || null,
+                history: JSON.parse(localStorage.getItem(KEYS.HISTORY)) || [],
+                votes: JSON.parse(localStorage.getItem(KEYS.VOTES)) || {},
+                streak: parseInt(localStorage.getItem(KEYS.STREAK)) || 0,
+                pin: localStorage.getItem(KEYS.PIN) || '1234',
+                templateM: localStorage.getItem(KEYS.TEMPLATE_M) || DEFAULT_M,
+                templateS: localStorage.getItem(KEYS.TEMPLATE_S) || DEFAULT_S,
+                draft: JSON.parse(localStorage.getItem(KEYS.DRAFT)) || { title: "", body: "", links: [], image: "", options: { divider: false, pair: true, tag: true } },
+                plan: JSON.parse(localStorage.getItem(KEYS.PLAN)) || null,
+                selection: JSON.parse(localStorage.getItem(KEYS.SELECTION)) || []
+            };
+        } catch (e) {
+            console.error("State initialization failed", e);
+            state = { members: [], history: [], votes: {}, selection: [], draft: { links: [], options: {} } };
+        }
 
         let sessionAuth = false;
         let pendingAction = null;
         let editingMemberId = null;
 
         function save() {
-            localStorage.setItem(KEYS.MEMBERS, JSON.stringify(state.members));
-            localStorage.setItem(KEYS.CURRENT, JSON.stringify(state.current));
-            localStorage.setItem(KEYS.HISTORY, JSON.stringify(state.history));
-            localStorage.setItem(KEYS.VOTES, JSON.stringify(state.votes));
-            localStorage.setItem(KEYS.STREAK, state.streak);
-            localStorage.setItem(KEYS.PIN, state.pin);
-            localStorage.setItem(KEYS.TEMPLATE_M, state.templateM);
-            localStorage.setItem(KEYS.TEMPLATE_S, state.templateS);
-            localStorage.setItem(KEYS.DRAFT, JSON.stringify(state.draft));
-            localStorage.setItem(KEYS.PLAN, JSON.stringify(state.plan));
-            localStorage.setItem(KEYS.SELECTION, JSON.stringify(state.selection));
+            try {
+                localStorage.setItem(KEYS.MEMBERS, JSON.stringify(state.members));
+                localStorage.setItem(KEYS.CURRENT, JSON.stringify(state.current));
+                localStorage.setItem(KEYS.HISTORY, JSON.stringify(state.history));
+                localStorage.setItem(KEYS.VOTES, JSON.stringify(state.votes));
+                localStorage.setItem(KEYS.STREAK, state.streak);
+                localStorage.setItem(KEYS.PIN, state.pin);
+                localStorage.setItem(KEYS.TEMPLATE_M, state.templateM);
+                localStorage.setItem(KEYS.TEMPLATE_S, state.templateS);
+                localStorage.setItem(KEYS.DRAFT, JSON.stringify(state.draft));
+                localStorage.setItem(KEYS.PLAN, JSON.stringify(state.plan));
+                localStorage.setItem(KEYS.SELECTION, JSON.stringify(state.selection));
+            } catch (e) { console.error("Save failed", e); }
         }
 
-        function showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 3000); }
+        function showToast(m) {
+            const t = document.getElementById('toast');
+            if (!t) return;
+            t.textContent = m; t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
 
-        // タブ切り替え
-        function switchTab(id, el) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            if (el) el.classList.add('active');
+        function switchTab(targetId) {
+            const contents = document.querySelectorAll('.tab-content');
+            const navItems = document.querySelectorAll('.nav-item');
+            contents.forEach(c => c.classList.remove('active'));
+            navItems.forEach(n => n.classList.remove('active'));
+            const targetContent = document.getElementById(targetId);
+            if (targetContent) targetContent.classList.add('active');
+            const targetNav = Array.from(navItems).find(n => n.dataset.tab === targetId || (n.dataset.tab === 'admin' && (targetId === 'screen-admin' || targetId === 'screen-pin')));
+            if (targetNav) targetNav.classList.add('active');
             render();
         }
 
-        function handleAdminTab(el) { if (sessionAuth) switchTab('screen-admin', el); else switchTab('screen-pin', el); }
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.onclick = function() {
+                const tab = this.dataset.tab;
+                if (tab === 'admin') {
+                    if (sessionAuth) switchTab('screen-admin');
+                    else switchTab('screen-pin');
+                } else {
+                    switchTab(tab);
+                }
+            };
+        });
 
-        // ログイン
         document.getElementById('btn-admin-login').onclick = () => {
-            if (document.getElementById('admin-pin-input').value === state.pin) {
+            const input = document.getElementById('admin-pin-input');
+            const error = document.getElementById('pin-error');
+            if (input.value === state.pin) {
                 sessionAuth = true;
-                handleAdminTab(document.querySelector('.nav-item:nth-child(2)'));
+                if (error) error.style.display = 'none';
+                switchTab('screen-admin');
             } else {
-                document.getElementById('pin-error').style.display = 'block';
+                if (error) error.style.display = 'block';
             }
         };
 
-        // 抽選ロジック
         function draw() {
-            const active = state.members.filter(m => !m.off && (!state.votes[m.id] || state.votes[m.id].answer !== 'no'));
-            if (active.length < 2) return alert("アクティブメンバーが不足しています");
+            // 自動不参加処理：日曜24時を過ぎて回答がないメンバーを不参加にする
+            // ここでは抽選時に「未回答のメンバー」をチェックし、回答がない場合は不参加扱いにする
+            const active = state.members.filter(m => {
+                if (m.off) return false;
+                const vote = state.votes[m.id];
+                // 回答がある場合はその内容に従う。回答がない場合は不参加(false)とする。
+                return vote ? vote.answer === 'yes' : false;
+            });
+
+            if (active.length < 2) return alert("参加可能なメンバーが不足しています（回答がない場合は不参加となります）");
+            
             let cands = active.filter(m => !state.selection.includes(m.id));
             if (cands.length < 2) { state.selection = []; cands = [...active]; }
+            
             const res = [];
             for (let i = 0; i < 2; i++) {
                 const idx = Math.floor(Math.random() * cands.length);
                 const m = cands.splice(idx, 1)[0];
-                res.push(m); state.selection.push(m.id);
-                state.members.find(x => x.id === m.id).total++;
+                res.push(m);
+                state.selection.push(m.id);
+                const member = state.members.find(x => x.id === m.id);
+                if (member) member.total++;
             }
+            
             const now = new Date();
-            state.current = { m1: res[0], m2: res[1], start: now.getTime(), label: `${now.getFullYear()}年 第${getWeek(now)}週`, done: false, posted: false };
+            state.current = { 
+                m1: res[0], m2: res[1], 
+                start: now.getTime(), 
+                label: `${now.getFullYear()}年 第${getWeek(now)}週`, 
+                done: false, posted: false 
+            };
             state.plan = null;
             save();
             render();
-            return state.current;
         }
 
-        function getWeek(d) { d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); var s = new Date(Date.UTC(d.getUTCFullYear(), 0, 1)); return Math.ceil((((d - s) / 86400000) + 1) / 7); }
+        function getWeek(d) {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+            var s = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - s) / 86400000) + 1) / 7);
+        }
 
-        // Discord投稿
         async function post(data, isEmbed = false) {
             try {
                 const body = isEmbed ? { embeds: [data] } : { content: data };
-                const res = await fetch(WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-                if (res.ok) { showToast("投稿しました！"); return true; }
-            } catch (e) {}
+                const res = await fetch(WEBHOOK_URL, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(body) 
+                });
+                if (res.ok) { showToast("Discordに投稿しました！"); return true; }
+            } catch (e) { console.error("Post failed", e); }
             showToast("投稿に失敗しました");
             return false;
         }
 
         function confirmPost(text, action) {
-            document.getElementById('confirm-text-preview').textContent = text;
-            pendingAction = action;
-            document.getElementById('modal-confirm-post').style.display = 'flex';
+            const modal = document.getElementById('modal-confirm-post');
+            const preview = document.getElementById('confirm-text-preview');
+            if (modal && preview) {
+                preview.textContent = text;
+                pendingAction = action;
+                modal.style.display = 'flex';
+            }
         }
 
         document.getElementById('btn-execute-post').onclick = async () => {
             if (pendingAction) {
                 const ok = await pendingAction();
-                if (ok) { document.getElementById('modal-confirm-post').style.display = 'none'; pendingAction = null; }
+                if (ok) {
+                    document.getElementById('modal-confirm-post').style.display = 'none';
+                    pendingAction = null;
+                }
             }
         };
-        document.getElementById('btn-cancel-post').onclick = () => { document.getElementById('modal-confirm-post').style.display = 'none'; pendingAction = null; };
+        document.getElementById('btn-cancel-post').onclick = () => {
+            document.getElementById('modal-confirm-post').style.display = 'none';
+            pendingAction = null;
+        };
 
-        // 企画エディタ
         document.getElementById('btn-open-creative-editor').onclick = () => {
             if (!state.current) return alert("ペアが未抽選です");
-            document.getElementById('editor-title').value = state.draft.title;
-            document.getElementById('editor-body').value = state.draft.body;
-            document.getElementById('editor-image-url').value = state.draft.image;
-            document.getElementById('check-divider').checked = state.draft.options.divider;
-            document.getElementById('check-pair').checked = state.draft.options.pair;
-            document.getElementById('check-tag').checked = state.draft.options.tag;
+            const d = state.draft;
+            document.getElementById('editor-title').value = d.title || "";
+            document.getElementById('editor-body').value = d.body || "";
+            document.getElementById('editor-image-url').value = d.image || "";
+            document.getElementById('check-divider').checked = !!d.options.divider;
+            document.getElementById('check-pair').checked = d.options.pair !== false;
+            document.getElementById('check-tag').checked = d.options.tag !== false;
             renderLinks();
             updatePreview();
             document.getElementById('modal-creative-editor').style.display = 'flex';
         };
 
-        function closeCreativeEditor() { document.getElementById('modal-creative-editor').style.display = 'none'; }
+        document.getElementById('btn-close-creative-editor').onclick = () => {
+            document.getElementById('modal-creative-editor').style.display = 'none';
+        };
 
         function updatePreview() {
             const t = document.getElementById('editor-title').value;
@@ -360,19 +431,22 @@
             document.getElementById('pv-title').textContent = t || "タイトル";
             let desc = b;
             if (div) desc = "━━━━━━━━━━━━━━━\n" + desc;
-            state.draft.links.forEach(l => desc += `\n🔗 [${l.label}](${l.url})`);
+            if (state.draft.links) {
+                state.draft.links.forEach(l => desc += `\n🔗 [${l.label}](${l.url})`);
+            }
             if (tag) desc += "\n#TSUGI_HANDS";
             document.getElementById('pv-desc').textContent = desc;
 
             const imgEl = document.getElementById('pv-image');
-            if (img) { imgEl.src = img; imgEl.classList.remove('hidden'); } else imgEl.classList.add('hidden');
+            if (img) { imgEl.src = img; imgEl.classList.remove('hidden'); } 
+            else { imgEl.classList.add('hidden'); }
 
             const foot = document.getElementById('pv-footer');
             if (pair && state.current) foot.textContent = `担当：${state.current.m1.emoji}${state.current.m1.name} × ${state.current.m2.emoji}${state.current.m2.name}`;
             else foot.textContent = "TSUGI HANDS";
         }
 
-        function applyTemplate(type) {
+        window.applyTemplate = function(type) {
             const ts = {
                 quiz: { t: "🧠 クイズ！", b: "問題です！\n\n【Q】〇〇は？" },
                 survey: { t: "📊 アンケート", b: "AかBか選んでね！" },
@@ -382,20 +456,33 @@
             document.getElementById('editor-title').value = ts[type].t;
             document.getElementById('editor-body').value = ts[type].b;
             updatePreview();
-        }
+        };
 
-        function addLink() {
+        document.getElementById('btn-add-link').onclick = () => {
             const l = document.getElementById('link-label').value;
             const u = document.getElementById('link-url').value;
-            if (l && u) { state.draft.links.push({ label: l, url: u }); document.getElementById('link-label').value = ""; document.getElementById('link-url').value = ""; renderLinks(); updatePreview(); }
-        }
+            if (l && u) {
+                if (!state.draft.links) state.draft.links = [];
+                state.draft.links.push({ label: l, url: u });
+                document.getElementById('link-label').value = "";
+                document.getElementById('link-url').value = "";
+                renderLinks();
+                updatePreview();
+            }
+        };
+
         function renderLinks() {
-            const c = document.getElementById('link-tags-container'); c.innerHTML = "";
-            state.draft.links.forEach((l, i) => {
-                const s = document.createElement('span'); s.className = 'link-tag';
-                s.innerHTML = `${l.label} <button onclick="state.draft.links.splice(${i},1);renderLinks();updatePreview();">×</button>`;
-                c.appendChild(s);
-            });
+            const c = document.getElementById('link-tags-container');
+            if (!c) return;
+            c.innerHTML = "";
+            if (state.draft.links) {
+                state.draft.links.forEach((l, i) => {
+                    const s = document.createElement('span');
+                    s.className = 'link-tag';
+                    s.innerHTML = `${l.label} <button onclick="state.draft.links.splice(${i},1);renderLinks();updatePreview();">×</button>`;
+                    c.appendChild(s);
+                });
+            }
         }
 
         document.getElementById('btn-confirm-post-creative').onclick = () => {
@@ -404,27 +491,59 @@
             confirmPost(text, async () => {
                 let desc = d.body;
                 if (d.options.divider) desc = "━━━━━━━━━━━━━━━\n" + desc;
-                d.links.forEach(l => desc += `\n🔗 [${l.label}](${l.url})`);
+                if (d.links) d.links.forEach(l => desc += `\n🔗 [${l.label}](${l.url})`);
                 if (d.options.tag) desc += "\n#TSUGI_HANDS";
-                const embed = { title: d.title, description: desc, color: 0xC66B4E, footer: { text: document.getElementById('pv-footer').textContent } };
+                const embed = { 
+                    title: d.title, 
+                    description: desc, 
+                    color: 0xC66B4E, 
+                    footer: { text: document.getElementById('pv-footer').textContent } 
+                };
                 if (d.image) embed.image = { url: d.image };
                 const ok = await post(embed, true);
-                if (ok) { state.plan = embed; save(); render(); closeCreativeEditor(); }
+                if (ok) { 
+                    state.plan = embed; 
+                    save(); 
+                    render(); 
+                    document.getElementById('modal-creative-editor').style.display = 'none';
+                }
                 return ok;
             });
         };
 
-        // メンバー管理
-        document.getElementById('btn-open-add-member').onclick = () => { editingMemberId = null; document.getElementById('member-modal-title').textContent = "メンバー追加"; document.getElementById('member-name').value = ""; document.getElementById('member-emoji').value = "👤"; document.getElementById('modal-member').style.display = 'flex'; };
+        document.getElementById('btn-open-add-member').onclick = () => {
+            editingMemberId = null;
+            document.getElementById('member-modal-title').textContent = "メンバー追加";
+            document.getElementById('member-name').value = "";
+            document.getElementById('member-emoji').value = "👤";
+            document.getElementById('modal-member').style.display = 'flex';
+        };
+
+        document.getElementById('btn-close-member-modal').onclick = () => {
+            document.getElementById('modal-member').style.display = 'none';
+        };
         
-        function editMember(id) {
+        window.editMember = function(id) {
             editingMemberId = id;
             const m = state.members.find(x => x.id === id);
+            if (!m) return;
             document.getElementById('member-modal-title').textContent = "メンバー編集";
             document.getElementById('member-name').value = m.name;
             document.getElementById('member-emoji').value = m.emoji;
             document.getElementById('modal-member').style.display = 'flex';
-        }
+        };
+
+        window.deleteMember = function(id) {
+            if (confirm("本当に削除しますか？")) {
+                state.members = state.members.filter(x => x.id !== id);
+                save(); render();
+            }
+        };
+
+        window.toggleOff = function(id, off) {
+            const m = state.members.find(x => x.id === id);
+            if (m) { m.off = off; save(); render(); }
+        };
 
         document.getElementById('btn-save-member').onclick = () => {
             const n = document.getElementById('member-name').value;
@@ -432,93 +551,162 @@
             if (!n) return alert("名前を入力してください");
             if (editingMemberId) {
                 const m = state.members.find(x => x.id === editingMemberId);
-                m.name = n; m.emoji = e;
+                if (m) { m.name = n; m.emoji = e; }
             } else {
                 state.members.push({ id: "m" + Date.now(), name: n, emoji: e, total: 0, off: false });
             }
-            save(); render(); document.getElementById('modal-member').style.display = 'none';
+            save(); render();
+            document.getElementById('modal-member').style.display = 'none';
         };
 
-        // レンダリング
         function render() {
-            // 今週
             const cp = state.current;
-            if (cp) {
-                document.getElementById('current-pair-display').innerHTML = `${cp.m1.emoji}${cp.m1.name} × ${cp.m2.emoji}${cp.m2.name}`;
-                document.getElementById('pair-status').textContent = cp.posted ? "投稿済み" : "未投稿";
+            const display = document.getElementById('current-pair-display');
+            const status = document.getElementById('pair-status');
+            if (cp && display && status) {
+                display.innerHTML = `${cp.m1.emoji}${cp.m1.name} × ${cp.m2.emoji}${cp.m2.name}`;
+                status.textContent = cp.posted ? "投稿済み" : "未投稿";
                 const wp = state.plan;
-                if (wp) {
-                    document.getElementById('weekly-plan-display').classList.remove('hidden');
-                    document.getElementById('plan-preview-mini').innerHTML = `<div class="discord-embed"><div class="embed-title">${wp.title}</div><div class="embed-desc">${wp.description}</div></div>`;
-                } else document.getElementById('weekly-plan-display').classList.add('hidden');
+                const planDiv = document.getElementById('weekly-plan-display');
+                const planMini = document.getElementById('plan-preview-mini');
+                if (wp && planDiv && planMini) {
+                    planDiv.classList.remove('hidden');
+                    planMini.innerHTML = `<div class="discord-embed"><div class="embed-title">${wp.title}</div><div class="embed-desc">${wp.description}</div></div>`;
+                } else if (planDiv) {
+                    planDiv.classList.add('hidden');
+                }
                 const b = document.getElementById('btn-complete-task');
-                b.disabled = cp.done; b.className = cp.done ? "btn btn-disabled" : "btn btn-success";
-                b.textContent = cp.done ? "✅ 今週は完了！" : "✅ 今週の企画を実施完了！";
+                if (b) {
+                    b.disabled = cp.done;
+                    b.className = cp.done ? "btn btn-disabled" : "btn btn-success";
+                    b.textContent = cp.done ? "✅ 今週は完了！" : "✅ 今週の企画を実施完了！";
+                }
+            } else if (display) {
+                display.textContent = "抽選待ち";
             }
 
-            // 管理者
-            document.getElementById('template-monday').value = state.templateM;
-            document.getElementById('template-saturday').value = state.templateS;
-            const mc = document.getElementById('member-list-container'); mc.innerHTML = "";
-            state.members.forEach(m => {
-                const d = document.createElement('div'); d.className = `member-list-item ${m.off ? 'inactive-member' : ''}`;
-                d.innerHTML = `<div class="member-emoji">${m.emoji}</div><div class="member-info"><b>${m.name}</b><br><small>選出:${m.total}回</small></div>
-                    <div class="member-actions"><button onclick="editMember('${m.id}')" style="background:none; border:none; cursor:pointer;">✏️</button><input type="checkbox" ${m.off ? 'checked' : ''} onchange="state.members.find(x=>x.id==='${m.id}').off=this.checked;save();render();"><button onclick="if(confirm('削除？')){state.members=state.members.filter(x=>x.id!=='${m.id}');save();render();}" style="background:none; border:none; color:red;">🗑️</button></div>`;
-                mc.appendChild(d);
-            });
+            const tm = document.getElementById('template-monday');
+            const ts = document.getElementById('template-saturday');
+            if (tm) tm.value = state.templateM;
+            if (ts) ts.value = state.templateS;
+            
+            const mc = document.getElementById('member-list-container');
+            if (mc) {
+                mc.innerHTML = "";
+                state.members.forEach(m => {
+                    const d = document.createElement('div');
+                    d.className = `member-list-item ${m.off ? 'inactive-member' : ''}`;
+                    d.innerHTML = `
+                        <div class="member-emoji">${m.emoji}</div>
+                        <div class="member-info"><b>${m.name}</b><br><small>選出:${m.total}回</small></div>
+                        <div class="member-actions">
+                            <button onclick="editMember('${m.id}')" style="background:none; border:none; cursor:pointer;">✏️</button>
+                            <input type="checkbox" ${m.off ? 'checked' : ''} onchange="toggleOff('${m.id}', this.checked)">
+                            <button onclick="deleteMember('${m.id}')" style="background:none; border:none; color:red; cursor:pointer;">🗑️</button>
+                        </div>`;
+                    mc.appendChild(d);
+                });
+            }
 
-            // 来週
-            const uv = document.getElementById('unvoted-list'); const v = document.getElementById('voted-list');
-            uv.innerHTML = ""; v.innerHTML = "";
-            state.members.forEach(m => {
-                const div = document.createElement('div'); div.style.padding = "5px"; div.textContent = `${m.emoji} ${m.name}`;
-                if (state.votes[m.id]) v.appendChild(div); else uv.appendChild(div);
-            });
+            const uv = document.getElementById('unvoted-list');
+            const v = document.getElementById('voted-list');
+            if (uv && v) {
+                uv.innerHTML = ""; v.innerHTML = "";
+                state.members.forEach(m => {
+                    const div = document.createElement('div');
+                    div.style.padding = "5px"; div.textContent = `${m.emoji} ${m.name}`;
+                    if (state.votes[m.id]) v.appendChild(div); else uv.appendChild(div);
+                });
+            }
 
-            // 履歴
-            document.getElementById('streak-display').textContent = `🔥 現在 ${state.streak} 週連続達成中！`;
-            const hl = document.getElementById('history-list'); hl.innerHTML = "";
-            state.history.forEach(h => {
-                const c = document.createElement('div'); c.className = 'card';
-                c.innerHTML = `<div>${h.label} ${h.done ? '✅' : '❌'}</div><div>${h.m1.name} × ${h.m2.name}</div>`;
-                hl.appendChild(c);
-            });
+            const streak = document.getElementById('streak-display');
+            if (streak) streak.textContent = `🔥 現在 ${state.streak} 週連続達成中！`;
+            
+            const hl = document.getElementById('history-list');
+            if (hl) {
+                hl.innerHTML = "";
+                state.history.forEach(h => {
+                    const c = document.createElement('div');
+                    c.className = 'card';
+                    c.innerHTML = `<div>${h.label} ${h.done ? '✅' : '❌'}</div><div>${h.m1.name} × ${h.m2.name}</div>`;
+                    hl.appendChild(c);
+                });
+            }
         }
 
-        // イベント
-        document.getElementById('btn-save-templates').onclick = () => { state.templateM = document.getElementById('template-monday').value; state.templateS = document.getElementById('template-saturday').value; save(); showToast("保存しました"); };
+        document.getElementById('btn-save-templates').onclick = () => {
+            state.templateM = document.getElementById('template-monday').value;
+            state.templateS = document.getElementById('template-saturday').value;
+            save(); showToast("テンプレートを保存しました");
+        };
+
         document.getElementById('btn-change-pin').onclick = () => {
-            const c = document.getElementById('pin-current').value; const n = document.getElementById('pin-new').value;
-            if (c === state.pin && n.length === 4) { state.pin = n; save(); alert("PIN変更完了"); } else alert("入力不備");
+            const cur = document.getElementById('pin-current').value;
+            const newPin = document.getElementById('pin-new').value;
+            if (cur === state.pin && newPin.length === 4) {
+                state.pin = newPin; save(); alert("PINを変更しました");
+                document.getElementById('pin-current').value = "";
+                document.getElementById('pin-new').value = "";
+            } else {
+                alert("現在のPINが違うか、新しいPINが4桁ではありません");
+            }
         };
-        document.getElementById('btn-force-draw').onclick = () => { if (confirm("抽選しますか？")) draw(); };
+
+        document.getElementById('btn-force-draw').onclick = () => {
+            if (confirm("今週のペアを新しく抽選しますか？（未回答者は不参加となります）")) draw();
+        };
+
         document.getElementById('btn-force-post-announcement').onclick = () => {
-            if (!state.current) return;
+            if (!state.current) return alert("ペアが未抽選です");
             const c = state.templateM.replace(/{memberA}/g, state.current.m1.name).replace(/{memberB}/g, state.current.m2.name);
-            confirmPost(c, async () => { const ok = await post(c); if (ok) { state.current.posted = true; save(); render(); } return ok; });
+            confirmPost(c, async () => {
+                const ok = await post(c);
+                if (ok) { state.current.posted = true; save(); render(); }
+                return ok;
+            });
         };
+
         document.getElementById('btn-post-vote-links').onclick = () => {
-            const u = window.location.href.split('index.html')[0] + 'vote.html';
-            const links = state.members.map(m => `${m.name}さん → ${u}?member=${m.id}`).join('\n');
-            const c = state.templateS.replace(/{voteLinks}/g, links);
+            const voteUrl = window.location.href.split('index.html')[0] + 'vote.html';
+            const c = state.templateS.replace(/{voteLink}/g, voteUrl);
             confirmPost(c, async () => post(c));
         };
-        document.getElementById('btn-reset-votes').onclick = () => { if (confirm("リセット？")) { state.votes = {}; save(); render(); } };
-        document.getElementById('btn-complete-task').onclick = () => { if (state.current && !state.current.done) { state.current.done = true; state.streak++; save(); render(); } };
 
-        // 自動更新
+        document.getElementById('btn-reset-votes').onclick = () => {
+            if (confirm("来週の参加回答をリセットしますか？")) {
+                state.votes = {}; save(); render();
+            }
+        };
+
+        document.getElementById('btn-complete-task').onclick = () => {
+            if (state.current && !state.current.done) {
+                state.current.done = true;
+                state.streak++;
+                save(); render();
+                showToast("お疲れ様でした！");
+            }
+        };
+
         function checkUpdate() {
             if (!state.current) return;
-            const now = new Date(); const last = new Date(state.current.start);
-            const nextM = new Date(last); nextM.setDate(last.getDate() + (8 - last.getDay()) % 7 || 7); nextM.setHours(0,0,0,0);
+            const now = new Date();
+            const last = new Date(state.current.start);
+            const nextM = new Date(last);
+            nextM.setDate(last.getDate() + (8 - last.getDay()) % 7 || 7);
+            nextM.setHours(0,0,0,0);
+            
             if (now >= nextM) {
                 state.history.unshift(state.current);
                 if (!state.current.done) state.streak = 0;
+                // 月曜になったら自動で抽選を行う（回答がない人は不参加）
                 draw();
             }
         }
 
-        window.onload = () => { checkUpdate(); render(); };
+        window.onload = () => {
+            checkUpdate();
+            render();
+        };
     </script>
 </body>
 </html>

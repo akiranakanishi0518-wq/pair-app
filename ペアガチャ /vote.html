@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>来週の参加投票 | TSUGI HANDS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #F8F6F2;
+            --text-color: #1A1A1A;
+            --accent-color: #C66B4E;
+            --sub-accent-color: #F5E6DF;
+            --success-color: #4CAF50;
+            --inactive-color: #BDBDBD;
+            --white: #FFFFFF;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+
+        .card {
+            background-color: var(--white);
+            border-radius: 24px;
+            padding: 40px 20px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            color: var(--accent-color);
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        select, textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #EEE;
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: inherit;
+            background-color: #FAFAFA;
+        }
+
+        select:focus {
+            border-color: var(--accent-color);
+            outline: none;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-yes {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-no {
+            background-color: var(--inactive-color);
+            color: white;
+        }
+
+        .reason-area {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .btn-submit {
+            background-color: var(--accent-color);
+            color: white;
+            margin-top: 15px;
+        }
+
+        #thanks-screen, #expired-screen {
+            display: none;
+        }
+
+        .deadline-info {
+            font-size: 12px;
+            color: #888;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card" id="vote-screen">
+        <h1>来週の参加投票</h1>
+        
+        <div class="form-group">
+            <label>あなたの名前を選択</label>
+            <select id="member-select" onchange="checkSelection()">
+                <option value="" disabled selected>選択してください</option>
+            </select>
+        </div>
+
+        <div id="action-buttons">
+            <button id="btn-yes" class="btn btn-yes" onclick="submitVote('yes')" disabled>✅ 参加できる！</button>
+            <button id="btn-no" class="btn btn-no" onclick="showReasonField()" disabled>❌ 今週は難しい</button>
+        </div>
+
+        <div id="reason-area" class="reason-area">
+            <div class="form-group">
+                <label>理由（任意）</label>
+                <textarea id="reason-input" placeholder="例：テスト期間、旅行など"></textarea>
+            </div>
+            <button class="btn btn-submit" onclick="submitVote('no')">回答を送信する</button>
+        </div>
+
+        <p class="deadline-info">※回答期限：日曜 24:00 まで</p>
+    </div>
+
+    <div class="card" id="thanks-screen">
+        <div style="font-size: 60px; margin-bottom: 20px;">🎉</div>
+        <h1>回答ありがとう！</h1>
+        <p id="thanks-msg">あなたの回答を保存しました。<br>今週も楽しもう！</p>
+        <button class="btn btn-outline" onclick="location.reload()" style="margin-top: 20px; background:#EEE; border:none; border-radius:12px; padding:10px;">他の人の回答を入力する</button>
+    </div>
+
+    <div class="card" id="expired-screen">
+        <div style="font-size: 60px; margin-bottom: 20px;">⏰</div>
+        <h1>回答期限終了</h1>
+        <p>来週の投票受付は終了しました。<br>（毎週日曜 24:00 締切）</p>
+    </div>
+
+    <script>
+        // localStorage からデータを取得
+        const members = JSON.parse(localStorage.getItem('tsugi_members')) || [];
+        const votes = JSON.parse(localStorage.getItem('tsugi_votes')) || {};
+
+        // セレクトボックスにメンバーを追加
+        const select = document.getElementById('member-select');
+        members.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = `${m.emoji} ${m.name}`;
+            select.appendChild(opt);
+        });
+
+        // 期限チェック（日曜24時 = 月曜0時）
+        function checkDeadline() {
+            const now = new Date();
+            const day = now.getDay(); // 0:日曜, 1:月曜...
+            // 月曜〜日曜の間の判定は index.html 側で行うが、
+            // ここでは単純に「今が月曜以降かつ抽選前」などの状態を想定
+            // ただし、ユーザーの要望は「日曜24時まで」なので、
+            // 月曜になった瞬間にこの画面を閉じるようにする
+            if (day === 1) { // 月曜日
+                document.getElementById('vote-screen').style.display = 'none';
+                document.getElementById('expired-screen').style.display = 'block';
+            }
+        }
+
+        function checkSelection() {
+            const val = document.getElementById('member-select').value;
+            document.getElementById('btn-yes').disabled = !val;
+            document.getElementById('btn-no').disabled = !val;
+        }
+
+        function showReasonField() {
+            document.getElementById('action-buttons').style.display = 'none';
+            document.getElementById('reason-area').style.display = 'block';
+        }
+
+        function submitVote(answer) {
+            const memberId = document.getElementById('member-select').value;
+            const reason = document.getElementById('reason-input').value;
+            const member = members.find(m => m.id === memberId);
+            
+            if (!memberId) return;
+
+            // localStorage に保存
+            const currentVotes = JSON.parse(localStorage.getItem('tsugi_votes')) || {};
+            currentVotes[memberId] = {
+                answer: answer,
+                reason: reason,
+                timestamp: new Date().getTime(),
+                name: member ? member.name : 'Unknown'
+            };
+            localStorage.setItem('tsugi_votes', JSON.stringify(currentVotes));
+
+            // 画面切り替え
+            document.getElementById('vote-screen').style.display = 'none';
+            document.getElementById('thanks-screen').style.display = 'block';
+            document.getElementById('thanks-msg').innerHTML = `<b>${member.name}</b> さんの回答を保存しました。<br>ありがとうございます！`;
+        }
+
+        window.onload = checkDeadline;
+    </script>
+</body>
+</html>

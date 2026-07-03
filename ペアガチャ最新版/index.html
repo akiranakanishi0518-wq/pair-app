@@ -215,7 +215,6 @@
     </nav>
 
     <script>
-        // エラーハンドリングの強化
         window.onerror = function(msg, url, line) {
             console.error("Error: " + msg + "\nURL: " + url + "\nLine: " + line);
             return false;
@@ -227,7 +226,6 @@
         const DEFAULT_M = `🎲 今週の担当ペア\n\n✨ {memberA} × {memberB}\n\n企画を考えてね！`;
         const DEFAULT_S = `📅 来週の参加投票\n\n🔗 [回答はこちら]({voteLink})\n\n日曜24時までに回答お願いします！`;
 
-        // 状態の初期化
         let state = {};
         try {
             state = {
@@ -317,12 +315,9 @@
         };
 
         function draw() {
-            // 自動不参加処理：日曜24時を過ぎて回答がないメンバーを不参加にする
-            // ここでは抽選時に「未回答のメンバー」をチェックし、回答がない場合は不参加扱いにする
             const active = state.members.filter(m => {
                 if (m.off) return false;
                 const vote = state.votes[m.id];
-                // 回答がある場合はその内容に従う。回答がない場合は不参加(false)とする。
                 return vote ? vote.answer === 'yes' : false;
             });
 
@@ -614,8 +609,10 @@
                 uv.innerHTML = ""; v.innerHTML = "";
                 state.members.forEach(m => {
                     const div = document.createElement('div');
-                    div.style.padding = "5px"; div.textContent = `${m.emoji} ${m.name}`;
-                    if (state.votes[m.id]) v.appendChild(div); else uv.appendChild(div);
+                    div.style.padding = "5px"; 
+                    const vote = state.votes[m.id];
+                    div.textContent = `${m.emoji} ${m.name}${vote && vote.reason ? ' (' + vote.reason + ')' : ''}`;
+                    if (vote) v.appendChild(div); else uv.appendChild(div);
                 });
             }
 
@@ -667,7 +664,18 @@
         };
 
         document.getElementById('btn-post-vote-links').onclick = () => {
-            const voteUrl = window.location.href.split('index.html')[0] + 'vote.html';
+            // 現在のURLからvote.htmlへのパスを確実に生成
+            let voteUrl = window.location.href;
+            if (voteUrl.includes('index.html')) {
+                voteUrl = voteUrl.replace('index.html', 'vote.html');
+            } else if (voteUrl.endsWith('/')) {
+                voteUrl += 'vote.html';
+            } else {
+                const parts = voteUrl.split('/');
+                parts[parts.length - 1] = 'vote.html';
+                voteUrl = parts.join('/');
+            }
+            
             const c = state.templateS.replace(/{voteLink}/g, voteUrl);
             confirmPost(c, async () => post(c));
         };
@@ -698,7 +706,6 @@
             if (now >= nextM) {
                 state.history.unshift(state.current);
                 if (!state.current.done) state.streak = 0;
-                // 月曜になったら自動で抽選を行う（回答がない人は不参加）
                 draw();
             }
         }

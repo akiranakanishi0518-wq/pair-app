@@ -34,7 +34,7 @@
         .card {
             background-color: var(--white);
             border-radius: 24px;
-            padding: 40px 20px;
+            padding: 30px 20px;
             width: 100%;
             max-width: 400px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.05);
@@ -42,12 +42,12 @@
 
         h1 {
             color: var(--accent-color);
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             margin-bottom: 20px;
         }
 
         .form-group {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             text-align: left;
         }
 
@@ -68,26 +68,17 @@
             background-color: #FAFAFA;
         }
 
-        select:focus {
-            border-color: var(--accent-color);
-            outline: none;
-        }
-
         .btn {
             display: block;
             width: 100%;
-            padding: 20px;
+            padding: 18px;
             border: none;
             border-radius: 16px;
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-            margin-bottom: 15px;
-            transition: transform 0.1s, opacity 0.2s;
-        }
-
-        .btn:active {
-            transform: scale(0.98);
+            margin-bottom: 12px;
+            transition: opacity 0.2s;
         }
 
         .btn:disabled {
@@ -95,36 +86,12 @@
             cursor: not-allowed;
         }
 
-        .btn-yes {
-            background-color: var(--success-color);
-            color: white;
-        }
+        .btn-yes { background-color: var(--success-color); color: white; }
+        .btn-no { background-color: var(--inactive-color); color: white; }
+        .btn-submit { background-color: var(--accent-color); color: white; margin-top: 10px; }
 
-        .btn-no {
-            background-color: var(--inactive-color);
-            color: white;
-        }
-
-        .reason-area {
-            display: none;
-            margin-top: 20px;
-        }
-
-        .btn-submit {
-            background-color: var(--accent-color);
-            color: white;
-            margin-top: 15px;
-        }
-
-        #thanks-screen, #expired-screen {
-            display: none;
-        }
-
-        .deadline-info {
-            font-size: 12px;
-            color: #888;
-            margin-top: 20px;
-        }
+        .hidden { display: none; }
+        #thanks-screen, #expired-screen { display: none; }
     </style>
 </head>
 <body>
@@ -140,40 +107,43 @@
         </div>
 
         <div id="action-buttons">
-            <button id="btn-yes" class="btn btn-yes" onclick="submitVote('yes')" disabled>✅ 参加できる！</button>
-            <button id="btn-no" class="btn btn-no" onclick="showReasonField()" disabled>❌ 今週は難しい</button>
+            <button id="btn-yes" class="btn btn-yes" onclick="selectAnswer('yes')" disabled>✅ 参加できる！</button>
+            <button id="btn-no" class="btn btn-no" onclick="selectAnswer('no')" disabled>❌ 今週は難しい</button>
         </div>
 
-        <div id="reason-area" class="reason-area">
+        <div id="final-step" class="hidden">
             <div class="form-group">
-                <label>理由（任意）</label>
-                <textarea id="reason-input" placeholder="例：テスト期間、旅行など"></textarea>
+                <label id="reason-label">ひとこと（任意）</label>
+                <textarea id="reason-input" placeholder="例：楽しみ！、今週は忙しくて..." rows="3"></textarea>
             </div>
-            <button class="btn btn-submit" onclick="submitVote('no')">回答を送信する</button>
+            <button class="btn btn-submit" onclick="submitVote()">回答を送信する</button>
+            <button class="btn" style="background:none; color:#888; font-size:14px;" onclick="backToSelection()">戻る</button>
         </div>
 
-        <p class="deadline-info">※回答期限：日曜 24:00 まで</p>
+        <p style="font-size:12px; color:#888; margin-top:20px;">※日曜 24:00 締切</p>
     </div>
 
     <div class="card" id="thanks-screen">
         <div style="font-size: 60px; margin-bottom: 20px;">🎉</div>
         <h1>回答ありがとう！</h1>
-        <p id="thanks-msg">あなたの回答を保存しました。<br>今週も楽しもう！</p>
-        <button class="btn btn-outline" onclick="location.reload()" style="margin-top: 20px; background:#EEE; border:none; border-radius:12px; padding:10px;">他の人の回答を入力する</button>
+        <p id="thanks-msg">あなたの回答を保存しました。</p>
+        <button class="btn" onclick="location.reload()" style="background:#EEE; border-radius:12px; margin-top:20px;">他の人の回答を入力する</button>
     </div>
 
     <div class="card" id="expired-screen">
         <div style="font-size: 60px; margin-bottom: 20px;">⏰</div>
         <h1>回答期限終了</h1>
-        <p>来週の投票受付は終了しました。<br>（毎週日曜 24:00 締切）</p>
+        <p>来週の投票受付は終了しました。</p>
     </div>
 
     <script>
-        // localStorage からデータを取得
-        const members = JSON.parse(localStorage.getItem('tsugi_members')) || [];
-        const votes = JSON.parse(localStorage.getItem('tsugi_votes')) || {};
+        const KEYS = { MEMBERS: 'tsugi_members', VOTES: 'tsugi_votes' };
+        let selectedAnswer = null;
 
-        // セレクトボックスにメンバーを追加
+        // localStorageからデータを取得
+        const members = JSON.parse(localStorage.getItem(KEYS.MEMBERS)) || [];
+        
+        // セレクトボックスの初期化
         const select = document.getElementById('member-select');
         members.forEach(m => {
             const opt = document.createElement('option');
@@ -182,55 +152,55 @@
             select.appendChild(opt);
         });
 
-        // 期限チェック（日曜24時 = 月曜0時）
-        function checkDeadline() {
-            const now = new Date();
-            const day = now.getDay(); // 0:日曜, 1:月曜...
-            // 月曜〜日曜の間の判定は index.html 側で行うが、
-            // ここでは単純に「今が月曜以降かつ抽選前」などの状態を想定
-            // ただし、ユーザーの要望は「日曜24時まで」なので、
-            // 月曜になった瞬間にこの画面を閉じるようにする
-            if (day === 1) { // 月曜日
-                document.getElementById('vote-screen').style.display = 'none';
-                document.getElementById('expired-screen').style.display = 'block';
-            }
-        }
-
         function checkSelection() {
             const val = document.getElementById('member-select').value;
             document.getElementById('btn-yes').disabled = !val;
             document.getElementById('btn-no').disabled = !val;
         }
 
-        function showReasonField() {
-            document.getElementById('action-buttons').style.display = 'none';
-            document.getElementById('reason-area').style.display = 'block';
+        function selectAnswer(ans) {
+            selectedAnswer = ans;
+            document.getElementById('action-buttons').classList.add('hidden');
+            document.getElementById('final-step').classList.remove('hidden');
+            document.getElementById('reason-label').textContent = ans === 'yes' ? '意気込み・ひとこと（任意）' : 'お休みの理由（任意）';
         }
 
-        function submitVote(answer) {
+        function backToSelection() {
+            document.getElementById('action-buttons').classList.remove('hidden');
+            document.getElementById('final-step').classList.add('hidden');
+        }
+
+        function submitVote() {
             const memberId = document.getElementById('member-select').value;
             const reason = document.getElementById('reason-input').value;
             const member = members.find(m => m.id === memberId);
             
-            if (!memberId) return;
+            if (!memberId || !selectedAnswer) return;
 
-            // localStorage に保存
-            const currentVotes = JSON.parse(localStorage.getItem('tsugi_votes')) || {};
+            // 既存の回答を取得して更新
+            const currentVotes = JSON.parse(localStorage.getItem(KEYS.VOTES)) || {};
             currentVotes[memberId] = {
-                answer: answer,
+                answer: selectedAnswer,
                 reason: reason,
                 timestamp: new Date().getTime(),
                 name: member ? member.name : 'Unknown'
             };
-            localStorage.setItem('tsugi_votes', JSON.stringify(currentVotes));
+            localStorage.setItem(KEYS.VOTES, JSON.stringify(currentVotes));
 
             // 画面切り替え
             document.getElementById('vote-screen').style.display = 'none';
             document.getElementById('thanks-screen').style.display = 'block';
-            document.getElementById('thanks-msg').innerHTML = `<b>${member.name}</b> さんの回答を保存しました。<br>ありがとうございます！`;
+            document.getElementById('thanks-msg').innerHTML = `<b>${member ? member.name : ''}</b> さんの回答を保存しました。<br>ありがとうございます！`;
         }
 
-        window.onload = checkDeadline;
+        // 期限チェック
+        window.onload = () => {
+            const now = new Date();
+            if (now.getDay() === 1) { // 月曜日
+                document.getElementById('vote-screen').style.display = 'none';
+                document.getElementById('expired-screen').style.display = 'block';
+            }
+        };
     </script>
 </body>
 </html>
